@@ -1,7 +1,7 @@
 # 🌑 Dominion MMO — Web-Based MMORPG
 
 <p align="center">
-  <img src="./dominion-client/assets/logo.png" width="340" alt="Dominion MMO Logo" />
+  <img src=".logo.png" width="340" alt="Dominion MMO Logo" />
   <h2 align="center">DOMINION MMO</h2>
 </p>
 
