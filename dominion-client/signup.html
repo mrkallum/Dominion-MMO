@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Sign Up — Forge of Legends</title>
+  <meta name="theme-color" content="#0b0b0b">
+  <!-- App Icons -->
+  <link rel="icon" type="image/png" sizes="16x16" href="/dominion-client/AppIcons/favicon-16x16.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/dominion-client/AppIcons/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="/dominion-client/AppIcons/android-chrome-192x192.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="/dominion-client/AppIcons/android-chrome-512x512.png">
+  <link rel="apple-touch-icon" href="/dominion-client/AppIcons/apple-touch-icon.png">
+  <link rel="manifest" href="/dominion-client/AppIcons/site.webmanifest">
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script async defer src="https://cdn.jsdelivr.net/gh/altcha-org/altcha/dist/altcha.min.js" type="module"></script>
+</head>
+<body>
+
+  <div class="login-container">
+    <h1>Create Account</h1>
+
+    <input id="email" type="email" placeholder="Email" autocomplete="email" />
+    <input id="username" type="text" placeholder="Username (optional)" autocomplete="username" />
+    <input id="password" type="password" placeholder="Password" autocomplete="new-password" />
+
+    <altcha-widget
+      id="altcha"
+      challengeurl="/auth/challenge"
+      debug="true"
+    ></altcha-widget>
+
+    <button id="signupBtn">Forge Account</button>
+
+    <p id="status"></p>
+    <p><a href="index.html">Back to login</a></p>
+  </div>
+
+  <!-- Use shared auth script -->
+  <script type="module" src="auth.js"></script>
+  <script>
+    const signupBtn = document.getElementById('signupBtn');
+    signupBtn.addEventListener('click', signup);
+
+    async function signup() {
+      const status = document.getElementById('status');
+      const email = document.getElementById('email').value.trim().toLowerCase();
+      const password = document.getElementById('password').value;
+      const username = document.getElementById('username').value.trim();
+      const altcha = document.querySelector('#altcha');
+
+      if (!email) {
+        status.textContent = 'Email is required.';
+        return;
+      }
+      if (!password || password.length < 6) {
+        status.textContent = 'Password must be at least 6 characters.';
+        return;
+      }
+      if (username.length > 20) {
+        status.textContent = 'Username must be 20 characters or less.';
+        return;
+      }
+
+      if (!altcha || altcha.state !== 'verified') {
+        status.textContent = 'Please complete the human verification challenge.';
+        return;
+      }
+
+      status.textContent = 'Forging your legend...';
+      await window.signup(); // call auth.js signup function
+    }
+  </script>
+  <script>
+    window.onerror = function(message, source, lineno, colno, error) {
+      fetch('/log-error', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message, filename: source, lineno, colno, error: error ? error.stack : '' })
+      });
+    };
+  </script>
+</body>
+</html>

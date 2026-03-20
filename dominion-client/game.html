@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Forge of Legends</title>
+  <meta name="theme-color" content="#0b0b0b">
+  <!-- App Icons -->
+  <link rel="icon" type="image/png" sizes="16x16" href="/dominion-client/AppIcons/favicon-16x16.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/dominion-client/AppIcons/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="/dominion-client/AppIcons/android-chrome-192x192.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="/dominion-client/AppIcons/android-chrome-512x512.png">
+  <link rel="apple-touch-icon" href="/dominion-client/AppIcons/apple-touch-icon.png">
+  <link rel="manifest" href="/dominion-client/AppIcons/site.webmanifest">
+  <style>
+    body { margin: 0; font-family: Arial, sans-serif; }
+    #ui { position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.7); color: white; padding: 10px; border-radius: 5px; max-width: 300px; }
+    #inventory-panel { position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.7); color: white; padding: 10px; border-radius: 5px; max-width: 320px; }
+    #inventory-panel { position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.7); color: white; padding: 10px; border-radius: 5px; max-width: 320px; }
+    #inventory-panel h3 { margin: 0 0 8px 0; }
+    #currency { display:flex; gap:8px; margin-bottom:8px; }
+    .coin { background: rgba(255,255,255,0.06); padding:4px 6px; border-radius:4px; }
+    #items-list { max-height: 120px; overflow:auto; padding:0; margin:0; list-style:none; }
+    #items-list li { padding:4px 6px; border-bottom:1px solid rgba(255,255,255,0.03); display:flex; justify-content:space-between; }
+    .equipment-slots { display: flex; flex-direction: column; gap: 5px; margin-top: 10px; }
+    .slot { background: rgba(255,255,255,0.1); padding: 5px; border-radius: 3px; font-size: 12px; }
+    #game-canvas { display: block; }
+    .stats-display h3, .equipment-display h3 { margin: 10px 0 5px 0; }
+    .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+    .stats-grid div { background: rgba(255,255,255,0.1); padding: 3px; border-radius: 3px; }
+    .equipment-slots { display: flex; flex-direction: column; gap: 5px; }
+    .slot { background: rgba(255,255,255,0.1); padding: 5px; border-radius: 3px; }
+  </style>
+</head>
+<body>
+  <div id="ui">
+    <h1>Forge of Legends</h1>
+    <div id="player-info"></div>
+  </div>
+    <div id="inventory-panel">
+      <h3>Inventory</h3>
+      <div id="currency">Loading...</div>
+      <h4>Items</h4>
+      <ul id="items-list"><li>Loading items...</li></ul>
+      <h4>Equipment</h4>
+      <div class="equipment-slots" id="equipment-summary">
+        <div class="slot">Head: Loading...</div>
+        <div class="slot">Chest: Loading...</div>
+        <div class="slot">Legs: Loading...</div>
+        <div class="slot">Weapon: Loading...</div>
+        <div class="slot">Back: Loading...</div>
+      </div>
+    </div>
+  <canvas id="game-canvas"></canvas>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+  <script>
+    // Game initialization
+    async function initGame() {
+      const token = localStorage.getItem('access_token');
+      if (!token) {
+        window.location.href = 'index.html';
+        return;
+      }
+
+      // Fetch profile
+      const response = await fetch('/profile/me', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const profile = await response.json();
+
+      if (profile.error) {
+        alert('Error loading profile: ' + profile.error);
+        return;
+      }
+
+      localStorage.setItem('profile', JSON.stringify(profile));
+
+      // Fetch inventory (read-only panel)
+      try {
+        await fetchAndRenderInventory(profile);
+      } catch (e) {
+        console.warn('Failed to load inventory', e);
+      }
+
+      // Calculate effective stats including equipment bonuses
+      const effectiveStats = calculateEffectiveStats(profile.stats, profile.appearance);
+
+      // Display player info
+      document.getElementById('player-info').innerHTML = `
+        <p>Welcome, ${profile.username}!</p>
+        <p>Race: ${profile.race} | Level: ${profile.level}</p>
+        <div class="stats-display">
+          <h3>Stats</h3>
+          <div class="stats-grid">
+            <div>HP: ${effectiveStats.hp}</div>
+            <div>Stamina: ${effectiveStats.stamina}</div>
+            <div>Strength: ${effectiveStats.strength}</div>
+            <div>Agility: ${effectiveStats.agility}</div>
+            <div>Intelligence: ${effectiveStats.intelligence}</div>
+          </div>
+        </div>
+        <div class="equipment-display">
+          <h3>Equipment</h3>
+          <div class="equipment-slots">
+            <div class="slot">Head: ${getEquipmentName(profile.appearance, 'head')}</div>
+            <div class="slot">Chest: ${getEquipmentName(profile.appearance, 'chest')}</div>
+            <div class="slot">Legs: ${getEquipmentName(profile.appearance, 'legs')}</div>
+            <div class="slot">Weapon: ${getEquipmentName(profile.appearance, 'weapon')}</div>
+            <div class="slot">Back: ${getEquipmentName(profile.appearance, 'back')}</div>
+          </div>
+        </div>
+      `;
+
+      // Initialize Three.js scene
+      initThreeJS(profile);
+    }
+
+    async function fetchAndRenderInventory(profile) {
+      const token = localStorage.getItem('access_token');
+      const res = await fetch('/inventory', { headers: { Authorization: `Bearer ${token}` } });
+      const inventory = await res.json();
+
+      renderInventory(inventory, profile);
+    }
+
+    function renderInventory(inventory = { gold:0, iron:0, copper:0, items:[] }, profile = {}) {
+      const cur = document.getElementById('currency');
+      cur.innerHTML = `
+        <div class="coin">Gold: ${inventory.gold || 0}</div>
+        <div class="coin">Iron: ${inventory.iron || 0}</div>
+        <div class="coin">Copper: ${inventory.copper || 0}</div>
+      `;
+
+      const itemsList = document.getElementById('items-list');
+      itemsList.innerHTML = '';
+
+      const equippedIds = new Set();
+      try {
+        const customization = profile.appearance?.customization || {};
+        Object.keys(customization).forEach(slot => {
+          const asset = customization[slot]?.asset;
+          if (asset) {
+            const id = asset.id || (asset.name && asset.name.toLowerCase().replace(/\s+/g, '_'));
+            if (id) equippedIds.add(id);
+          }
+        });
+      } catch (e) {
+        // ignore
+      }
+
+      (inventory.items || []).forEach(it => {
+        const id = it.id || 'unknown';
+        const qty = it.quantity || 0;
+        const equipped = equippedIds.has(id);
+        const li = document.createElement('li');
+        const buttonText = equipped ? 'Unequip' : 'Equip';
+        const action = equipped ? 'unequip' : 'equip';
+        li.innerHTML = `<span>${id}</span><span>${qty}</span><button onclick="handleEquip('${id}', '${action}')">${buttonText}</button>`;
+        itemsList.appendChild(li);
+      });
+
+      if ((inventory.items || []).length === 0) {
+        itemsList.innerHTML = '<li>(no items)</li>';
+      }
+
+      // Update equipment summary
+      const eqSummary = document.getElementById('equipment-summary');
+      eqSummary.innerHTML = `
+        <div class="slot">Head: ${getEquipmentName(profile.appearance, 'head')}</div>
+        <div class="slot">Chest: ${getEquipmentName(profile.appearance, 'chest')}</div>
+        <div class="slot">Legs: ${getEquipmentName(profile.appearance, 'legs')}</div>
+        <div class="slot">Weapon: ${getEquipmentName(profile.appearance, 'weapon')}</div>
+        <div class="slot">Back: ${getEquipmentName(profile.appearance, 'back')}</div>
+      `;
+    }
+
+    async function handleEquip(itemId, action) {
+      const token = localStorage.getItem('access_token');
+      if (!token) return;
+
+      const itemSlotMap = {
+        sword: 'weapon',
+        shield: 'back',
+        helmet: 'head',
+        armor: 'chest',
+        boots: 'legs'
+      };
+
+      const slot = itemSlotMap[itemId];
+      if (!slot) {
+        alert('Unknown item slot');
+        return;
+      }
+
+      const endpoint = action === 'equip' ? '/profile/equip' : '/profile/unequip';
+      const body = action === 'equip' ? { itemId, slot } : { slot };
+
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify(body)
+      });
+
+      if (res.ok) {
+        // Refresh profile and inventory
+        const profileRes = await fetch('/profile/me', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const profile = await profileRes.json();
+        localStorage.setItem('profile', JSON.stringify(profile));
+
+        const inventoryRes = await fetch('/inventory', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const inventory = await inventoryRes.json();
+
+        renderInventory(inventory, profile);
+
+        // Update stats display
+        const effectiveStats = calculateEffectiveStats(profile.stats, profile.appearance);
+        document.getElementById('player-info').innerHTML = `
+          <p>Welcome, ${profile.username}!</p>
+          <p>Race: ${profile.race} | Level: ${profile.level}</p>
+          <div class="stats-display">
+            <h3>Stats</h3>
+            <div class="stats-grid">
+              <div>HP: ${effectiveStats.hp}</div>
+              <div>Stamina: ${effectiveStats.stamina}</div>
+              <div>Strength: ${effectiveStats.strength}</div>
+              <div>Agility: ${effectiveStats.agility}</div>
+              <div>Intelligence: ${effectiveStats.intelligence}</div>
+            </div>
+          </div>
+          <div class="equipment-display">
+            <h3>Equipment</h3>
+            <div class="equipment-slots">
+              <div class="slot">Head: ${getEquipmentName(profile.appearance, 'head')}</div>
+              <div class="slot">Chest: ${getEquipmentName(profile.appearance, 'chest')}</div>
+              <div class="slot">Legs: ${getEquipmentName(profile.appearance, 'legs')}</div>
+              <div class="slot">Weapon: ${getEquipmentName(profile.appearance, 'weapon')}</div>
+              <div class="slot">Back: ${getEquipmentName(profile.appearance, 'back')}</div>
+            </div>
+          </div>
+        `;
+      } else {
+        alert('Failed to ' + action + ' item');
+      }
+    }
+
+    function initThreeJS(profile) {
+      const canvas = document.getElementById('game-canvas');
+      const scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x87CEEB); // Sky blue
+
+      const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+      camera.position.set(0, 2, 5);
+
+      const renderer = new THREE.WebGLRenderer({ canvas });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.shadowMap.enabled = true;
+
+      // Lighting
+      const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
+      scene.add(ambientLight);
+
+      const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+      directionalLight.position.set(10, 10, 5);
+      directionalLight.castShadow = true;
+      scene.add(directionalLight);
+
+      // Ground
+      const groundGeometry = new THREE.PlaneGeometry(20, 20);
+      const groundMaterial = new THREE.MeshLambertMaterial({ color: 0x90EE90 });
+      const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+      ground.rotation.x = -Math.PI / 2;
+      ground.receiveShadow = true;
+      scene.add(ground);
+
+      // Create player character
+      const player = createCharacter(profile);
+      scene.add(player);
+
+      // Animation loop
+      function animate() {
+        requestAnimationFrame(animate);
+        
+        // Idle animation for character
+        if (player.userData) {
+          player.userData.animationTime += 0.02;
+          // Subtle breathing/sway
+          player.position.y = player.userData.baseY + Math.sin(player.userData.animationTime) * 0.05;
+          player.rotation.y += 0.005;
+        }
+        
+        renderer.render(scene, camera);
+      }
+      animate();
+
+      // Handle window resize
+      window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      });
+    }
+
+    function createCharacter(profile) {
+      const characterGroup = new THREE.Group();
+      
+      // Basic capsule geometry for body
+      const bodyGeometry = new THREE.CapsuleGeometry(0.4, 1.2, 4, 8);
+      const raceColors = {
+        human: 0xF5C6A5,
+        elf: 0x55FF99,
+        dwarf: 0xFFAA55,
+        voidborn: 0x8844FF
+      };
+      const bodyColor = raceColors[profile.race] || 0xF5C6A5;
+      const bodyMaterial = new THREE.MeshStandardMaterial({ color: bodyColor });
+      const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+      body.position.y = 1;
+      body.castShadow = true;
+      characterGroup.add(body);
+
+      // Equipment slots (placeholder cubes)
+      const equipmentSlots = {
+        head: { position: [0, 2.2, 0], size: [0.3, 0.3, 0.3], color: 0x8B4513 },
+        chest: { position: [0, 1.2, 0], size: [0.8, 0.6, 0.3], color: 0x654321 },
+        legs: { position: [0, 0.3, 0], size: [0.6, 0.8, 0.3], color: 0x2F4F4F },
+        weapon: { position: [0.6, 1, 0], size: [0.1, 1.2, 0.1], color: 0x696969 },
+        back: { position: [0, 1.5, -0.3], size: [0.4, 0.8, 0.2], color: 0x8B0000 }
+      };
+
+      Object.entries(equipmentSlots).forEach(([slot, config]) => {
+        const geometry = new THREE.BoxGeometry(...config.size);
+        const material = new THREE.MeshStandardMaterial({ color: config.color, transparent: true, opacity: 0.7 });
+        const mesh = new THREE.Mesh(geometry, material);
+        mesh.position.set(...config.position);
+        mesh.castShadow = true;
+        characterGroup.add(mesh);
+      });
+
+      // Apply appearance customizations
+      if (profile.appearance) {
+        applyAppearance(characterGroup, profile.appearance);
+      }
+
+      // Idle animation
+      characterGroup.userData = { baseY: 1, animationTime: 0 };
+      
+      return characterGroup;
+    }
+
+    function applyAppearance(characterGroup, appearance) {
+      // Map appearance data to visual changes
+      // This is a basic implementation - expand with actual asset loading
+      
+      console.log('Applying appearance:', appearance);
+      
+      // Example mappings (customize based on your appearance JSON structure)
+      if (appearance.skin) {
+        // Change body color based on skin
+        const skinColors = {
+          light: 0xF5C6A5,
+          medium: 0xD2B48C,
+          dark: 0x8B4513
+        };
+        if (characterGroup.children[0] && skinColors[appearance.skin]) {
+          characterGroup.children[0].material.color.setHex(skinColors[appearance.skin]);
+        }
+      }
+
+      // Equipment visibility based on appearance
+      if (appearance.customization) {
+        Object.keys(appearance.customization).forEach(category => {
+          const asset = appearance.customization[category]?.asset;
+          if (asset) {
+            console.log(`Category ${category}: ${asset.name || asset.id}`);
+            // Here you would load actual meshes
+            // For now, just change equipment colors or visibility
+          }
+        });
+      }
+    }
+
+    function calculateEffectiveStats(baseStats, appearance) {
+      const effective = { ...baseStats };
+      
+      if (!appearance || !appearance.customization) {
+        return effective;
+      }
+
+      // Equipment modifiers (example values - customize based on your items)
+      const equipmentModifiers = {
+        // Head slot
+        head: {
+          leather_cap: { hp: +5 },
+          iron_helmet: { hp: +15, agility: -2 },
+          mage_hood: { intelligence: +5, hp: -5 }
+        },
+        // Chest slot
+        chest: {
+          leather_armor: { hp: +20, agility: -1 },
+          chain_mail: { hp: +40, agility: -3 },
+          robe: { intelligence: +10, hp: -10 }
+        },
+        // Legs slot
+        legs: {
+          leather_pants: { hp: +10, agility: +1 },
+          plate_leggings: { hp: +25, agility: -2 },
+          cloth_pants: { intelligence: +3 }
+        },
+        // Weapon slot
+        weapon: {
+          wooden_sword: { strength: +2 },
+          iron_sword: { strength: +5 },
+          staff: { intelligence: +8, strength: -2 }
+        },
+        // Back slot
+        back: {
+          leather_cape: { stamina: +10 },
+          traveler_pack: { stamina: +5, strength: +1 }
+        }
+      };
+
+      // Apply modifiers from equipped items
+      Object.keys(appearance.customization).forEach(slot => {
+        const item = appearance.customization[slot]?.asset;
+        if (item && equipmentModifiers[slot]) {
+          const itemId = item.id || item.name?.toLowerCase().replace(/\s+/g, '_');
+          const modifiers = equipmentModifiers[slot][itemId];
+          if (modifiers) {
+            Object.keys(modifiers).forEach(stat => {
+              const value = modifiers[stat];
+              if (typeof value === 'number') {
+                effective[stat] = (effective[stat] || 0) + value;
+              }
+            });
+          }
+        }
+      });
+
+      return effective;
+    }
+
+    function getEquipmentName(appearance = {}, slot) {
+      try {
+        const asset = appearance?.customization?.[slot]?.asset;
+        if (!asset) return '(none)';
+        return asset.name || asset.id || '(unknown)';
+      } catch (e) {
+        return '(unknown)';
+      }
+    }
+
+    // Start the game when the page loads
+    window.addEventListener('load', () => {
+      initGame().catch(err => console.error('initGame error', err));
+    });
+  </script>
+  <script>
+    window.onerror = function(message, source, lineno, colno, error) {
+      fetch('/log-error', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message, filename: source, lineno, colno, error: error ? error.stack : '' })
+      });
+    };
+  </script>
+</body>
+</html>

@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Create Your Legend | Forge of Legends</title>
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0b0b0b">
+
+  <!-- App Icons -->
+  <link rel="icon" type="image/png" sizes="16x16" href="/dominion-client/AppIcons/favicon-16x16.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/dominion-client/AppIcons/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="/dominion-client/AppIcons/android-chrome-192x192.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="/dominion-client/AppIcons/android-chrome-512x512.png">
+  <link rel="apple-touch-icon" href="/dominion-client/AppIcons/apple-touch-icon.png">
+  <link rel="manifest" href="/dominion-client/AppIcons/site.webmanifest">
+
+  <link rel="stylesheet" href="character.css" />
+</head>
+<body>
+
+<!-- 🔐 Hard Auth Gate -->
+<script>
+  if (!localStorage.getItem('access_token')) {
+    window.location.href = 'index.html';
+  }
+</script>
+
+<div class="layout">
+
+  <!-- LEFT: UI -->
+  <div class="ui">
+    <h1>Create Your Legend</h1>
+
+    <input
+      id="username"
+      type="text"
+      placeholder="Username"
+      minlength="3"
+      maxlength="16"
+      pattern="[a-zA-Z0-9_]+"
+      title="3–16 characters, letters/numbers/_ only"
+    />
+
+    <select id="race">
+      <option value="human">Human</option>
+      <option value="elf">Elf</option>
+      <option value="dwarf">Dwarf</option>
+      <option value="voidborn">Voidborn</option>
+    </select>
+
+    <button id="createBtn">Enter Dominion</button>
+
+    <p id="status">Preparing character creator…</p>
+  </div>
+
+  <!-- CENTER: THREE.JS -->
+  <canvas id="scene"></canvas>
+
+  <!-- RIGHT: EQUIPMENT (VISUAL ONLY) -->
+  <div class="equipment">
+    <h3>Equipment</h3>
+    <div class="slot">Head</div>
+    <div class="slot">Chest</div>
+    <div class="slot">Legs</div>
+    <div class="slot">Weapon</div>
+    <div class="slot">Accessory</div>
+
+    <p class="note">Equipment unlocks in-game.</p>
+  </div>
+
+</div>
+
+<!-- ADVANCED CONFIGURATOR -->
+<section class="advanced">
+  <h2>Advanced Creator (Beta)</h2>
+  <p>For deep customization, use the advanced creator.</p>
+
+  <a id="open-r3f" target="_blank">Open in new tab</a>
+
+  <iframe
+    id="r3fFrame"
+    sandbox="allow-scripts allow-same-origin"
+  ></iframe>
+</section>
+
+<!-- Libraries -->
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+<script src="character.js"></script>
+<script>
+  window.onerror = function(message, source, lineno, colno, error) {
+    fetch('/log-error', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message, filename: source, lineno, colno, error: error ? error.stack : '' })
+    });
+  };
+</script>
+</body>
+</html>
+
+

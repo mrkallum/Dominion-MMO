@@ -1,0 +1,73 @@
+{
+  "name": "@altcha/plugins",
+  "description": "Plugins for the ALTCHA widget.",
+  "version": "1.0.0",
+  "license": "MIT",
+  "author": {
+    "name": "Daniel Regeci",
+    "url": "https://altcha.org"
+  },
+  "homepage": "https://altcha.org",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/altcha-org/altcha.git"
+  },
+  "type": "module",
+  "keywords": [
+    "altcha",
+    "plugins",
+    "obfuscation"
+  ],
+  "files": [
+    "dist"
+  ],
+  "main": "./dist/index.umd.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    "./analytics": {
+      "import": "./dist/analytics.js",
+      "require": "./dist/analytics.umd.cjs"
+    },
+    "./obfuscation": {
+      "import": "./dist/obfuscation.js",
+      "require": "./dist/obfuscation.umd.cjs"
+    },
+    "./upload": {
+      "import": "./dist/upload.js",
+      "require": "./dist/upload.umd.cjs"
+    }
+  },
+  "scripts": {
+    "build:plugins": "rimraf dist && find ../src/plugins -type f -name '*.ts' | xargs -I {} vite build -c vite.plugins.config.ts -- {}"
+  },
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "^6.2.1",
+    "@tsconfig/svelte": "^5.0.4",
+    "@types/csso": "^5.0.4",
+    "@types/node": "^20.16.3",
+    "@types/react": "^19.1.14",
+    "csso": "^5.0.5",
+    "husky": "^9.1.5",
+    "prettier": "3.2.5",
+    "prettier-plugin-svelte": "^3.2.6",
+    "rimraf": "^6.0.1",
+    "sass": "^1.77.8",
+    "svelte": "^5.28.6",
+    "svelte-check": "^4.0.0",
+    "testcafe": "^3.7.2",
+    "tslib": "^2.7.0",
+    "typescript": "^5.5.4",
+    "vite": "^7.1.7",
+    "vite-plugin-string": "^1.2.3",
+    "vitest": "^3.0.8"
+  },
+  "dependencies": {
+  },
+  "optionalDependencies": {
+    "@rollup/rollup-linux-x64-gnu": "4.18.0"
+  },
+  "overrides": {
+    "tmp": "0.2.5"
+  }
+}

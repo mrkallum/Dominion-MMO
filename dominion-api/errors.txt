@@ -1,0 +1,2 @@
+2026-02-13T21:26:08.864Z - Error: Uncaught TypeError: Cannot read properties of undefined (reading 'createClient') at https://cautious-trout-jj99vgxg5v4j24pv-3000.app.github.dev/auth.js:4:34 - TypeError: Cannot read properties of undefined (reading 'createClient')
+    at https://cautious-trout-jj99vgxg5v4j24pv-3000.app.github.dev/auth.js:4:34

@@ -1,0 +1,34 @@
+body {
+  margin: 0;
+  overflow: hidden;
+  background: black;
+  color: white;
+  font-family: serif;
+}
+
+.ui {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  background: rgba(0,0,0,0.7);
+  padding: 20px;
+  width: 260px;
+  z-index: 10;
+}
+
+input, select, button {
+  width: 100%;
+  margin-top: 10px;
+  padding: 8px;
+}
+
+button {
+  background: #aaa;
+  cursor: pointer;
+}
+
+canvas {
+  width: 100vw;
+  height: 100vh;
+  display: block;
+}

@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Human Verification — Forge of Legends</title>
+    <script async defer src="https://cdn.jsdelivr.net/gh/altcha-org/altcha/dist/altcha.min.js" type="module"></script>
+    <style>
+      body { font-family: Arial, sans-serif; background: #0b0b0b; color: white; text-align: center; padding: 50px; }
+      .container { max-width: 400px; margin: 0 auto; }
+      altcha-widget { margin: 20px 0; }
+      button { background: #333; color: white; border: none; padding: 10px 20px; cursor: pointer; }
+      button:disabled { opacity: 0.5; }
+      p { color: #ccc; }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Prove You're Human</h1>
+      <p>Complete the challenge to continue.</p>
+
+      <altcha-widget
+        challengeurl="/auth/challenge"
+        debug="true"
+      ></altcha-widget>
+
+      <button id="submitBtn" disabled>Continue</button>
+
+      <p id="status"></p>
+    </div>
+
+    <script>
+      const submitBtn = document.getElementById('submitBtn');
+      const status = document.getElementById('status');
+      const altchaWidget = document.querySelector('altcha-widget');
+
+      altchaWidget.addEventListener('statechange', (ev) => {
+        submitBtn.disabled = ev.detail.state !== 'verified';
+      });
+
+      submitBtn.addEventListener('click', async () => {
+        submitBtn.disabled = true;
+        status.textContent = 'Verifying...';
+
+        const email = sessionStorage.getItem('authEmail');
+        if (!email) {
+          status.textContent = 'Session expired.';
+          return;
+        }
+
+        try {
+          // Submit ALTCHA proof
+          const response = await fetch('/auth/altcha', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ altcha: altchaWidget.solution, email })
+          });
+
+          if (response.status === 403) {
+            status.textContent = 'Verification failed. Redirecting...';
+            setTimeout(() => window.location.href = sessionStorage.getItem('authIntent') === 'signup' ? '/signup.html' : '/index.html', 2000);
+            return;
+          }
+
+          if (!response.ok) {
+            status.textContent = 'Error: ' + response.statusText;
+            submitBtn.disabled = false;
+            return;
+          }
+
+          const data = await response.json();
+          const altchaToken = data.altcha_token;
+
+          // Check if resend
+          const isResend = sessionStorage.getItem('resend') === 'true';
+          sessionStorage.removeItem('resend');
+
+          const endpoint = isResend ? '/auth/resend-otp' : '/auth/request-otp';
+          const body = isResend ? { altcha_token: altchaToken } : { altcha_token: altchaToken, intent: sessionStorage.getItem('authIntent') };
+
+          const otpResponse = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+          });
+
+          if (otpResponse.ok) {
+            status.textContent = isResend ? 'Code resent. Redirecting...' : 'OTP sent. Redirecting...';
+            setTimeout(() => window.location.href = '/verify.html', 1000);
+          } else {
+            const otpData = await otpResponse.json();
+            status.textContent = otpData.error || 'Failed to send OTP';
+            submitBtn.disabled = false;
+          }
+        } catch (err) {
+          status.textContent = 'Network error.';
+          submitBtn.disabled = false;
+        }
+      });
+    </script>
+  </body>
+</html>

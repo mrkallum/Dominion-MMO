@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Verify Email — Forge of Legends</title>
+  <meta name="theme-color" content="#0b0b0b">
+  <!-- App Icons -->
+  <link rel="icon" type="image/png" sizes="16x16" href="/dominion-client/AppIcons/favicon-16x16.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/dominion-client/AppIcons/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="/dominion-client/AppIcons/android-chrome-192x192.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="/dominion-client/AppIcons/android-chrome-512x512.png">
+  <link rel="apple-touch-icon" href="/dominion-client/AppIcons/apple-touch-icon.png">
+  <link rel="manifest" href="/dominion-client/AppIcons/site.webmanifest">
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="login-container">
+    <h1>Verify Your Email</h1>
+
+    <p id="message">Enter the 6-digit code we emailed you.</p>
+
+    <input id="email" type="email" placeholder="Email" autocomplete="email" />
+    <input id="code" type="text" inputmode="numeric" maxlength="6" placeholder="6-digit code" />
+
+    <button id="verifyBtn">Verify</button>
+    <button id="resendBtn" style="margin-left:8px;">Resend code</button>
+
+    <p id="status"></p>
+    <p><a href="signup.html">Back to signup</a></p>
+  </div>
+
+  <script>
+    const emailInput = document.getElementById('email');
+    const codeInput = document.getElementById('code');
+    const status = document.getElementById('status');
+    const verifyBtn = document.getElementById('verifyBtn');
+    const resendBtn = document.getElementById('resendBtn');
+
+    // Get data from sessionStorage
+    const intent = sessionStorage.getItem('authIntent');
+    const email = sessionStorage.getItem('authEmail');
+    const password = sessionStorage.getItem('authPassword');
+    const username = sessionStorage.getItem('authUsername');
+
+    if (!email || !intent) {
+      status.textContent = 'Session expired. Please start over.';
+      setTimeout(() => window.location.href = 'index.html', 2000);
+    } else {
+      emailInput.value = email;
+    }
+
+    async function verify() {
+      const code = codeInput.value.trim();
+      if (!code) {
+        status.textContent = 'Code is required.';
+        return;
+      }
+      verifyBtn.disabled = true;
+      status.textContent = 'Verifying...';
+
+      try {
+        const response = await fetch('/auth/verify-otp', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, code, intent, password, username })
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+          localStorage.setItem('access_token', data.token);
+          status.textContent = 'Verified — redirecting...';
+          setTimeout(() => window.location.href = 'create-character.html', 800);
+        } else {
+          status.textContent = data.error || 'Verification failed.';
+          verifyBtn.disabled = false;
+        }
+      } catch (err) {
+        status.textContent = 'Verification error.';
+        verifyBtn.disabled = false;
+      }
+    }
+
+    verifyBtn.addEventListener('click', verify);
+
+    // Resend code - redirect to ALTCHA
+    resendBtn.addEventListener('click', () => {
+      // Store resend intent
+      sessionStorage.setItem('resend', 'true');
+      window.location.href = '/altcha-main/index.html';
+    });
+  </script>
+  <script>
+    window.onerror = function(message, source, lineno, colno, error) {
+      fetch('/log-error', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message, filename: source, lineno, colno, error: error ? error.stack : '' })
+      });
+    };
+  </script>
+</body>
+</html>

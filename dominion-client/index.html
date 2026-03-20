@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Forge of Legends</title>
+  <meta name="theme-color" content="#0b0b0b">
+  <!-- App Icons -->
+  <link rel="icon" type="image/png" sizes="16x16" href="/dominion-client/AppIcons/favicon-16x16.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/dominion-client/AppIcons/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="/dominion-client/AppIcons/android-chrome-192x192.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="/dominion-client/AppIcons/android-chrome-512x512.png">
+  <link rel="apple-touch-icon" href="/dominion-client/AppIcons/apple-touch-icon.png">
+  <link rel="manifest" href="/dominion-client/AppIcons/site.webmanifest">
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script async defer src="https://cdn.jsdelivr.net/gh/altcha-org/altcha/dist/altcha.min.js" type="module"></script>
+</head>
+<body>
+
+  <div class="login-container">
+    <h1>Legends of Dominion</h1>
+    <h2>Enter the Realm</h2>
+
+    <input id="email" type="email" placeholder="Email" autocomplete="username" />
+    <input id="password" type="password" placeholder="Password" autocomplete="current-password" />
+
+    <altcha-widget
+      id="altcha"
+      challengeurl="/auth/challenge"
+      debug="true"
+    ></altcha-widget>
+
+    <button id="loginBtn">Enter The Realm</button>
+
+    <a class="link" href="signup.html">Do Not Have ID — Join Us!</a>
+
+    <p id="status"></p>
+  </div>
+
+  <!-- client authentication script -->
+  <script type="module" src="auth.js"></script>
+  <script>
+    const loginBtn = document.getElementById('loginBtn');
+    loginBtn.addEventListener('click', login);
+  </script>
+  <script>
+    window.onerror = function(message, source, lineno, colno, error) {
+      fetch('/log-error', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message, filename: source, lineno, colno, error: error ? error.stack : '' })
+      });
+    };
+  </script>
+</body>
+</html>
